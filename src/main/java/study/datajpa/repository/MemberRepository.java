@@ -1,10 +1,10 @@
 package study.datajpa.repository;
 
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
@@ -12,7 +12,7 @@ import study.datajpa.entity.Member;
 import java.util.List;
 import java.util.Optional;
 
-public interface MemberRepository extends JpaRepository<Member, Long> {
+public interface MemberRepository extends JpaRepository<Member, Long>, MemberRepositoryCustom{
 
     List<Member> findByUsernameAndAgeGreaterThan(String username, int age);
 
@@ -69,7 +69,26 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     /**
      * 패치 조인
      * 지연로딩이였던 team 을 패치조인을 통해 N+1 문제를 해결할 수 있다.
+     * 혹은 @EntityGraph(attributePaths = ("team") 을 통해서 해결할 수 있다.
      */
     @Query("select m from Member m left join fetch m.team ")
     List<Member> findMemberFetchJoin();
+
+    @EntityGraph(attributePaths = ("team"))
+    @Query("select m from Member m")
+    List<Member> findMemberFetchJoin2();
+
+    /**
+     * ReadyOnly 설정하면 중간에 불필요한 dirty check 를 건너 뛰어 최적화가 가능하다
+     */
+    @QueryHints(value = @QueryHint(name = "org.hibernate.readOnly", value = "true"))
+    Member findReadOnlyByUsername(String username);
+
+    /**
+     * 로직 수행시 디비 락을 걸어버린다.
+     *
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Member> findLockByUsername(String username);
+
 }
